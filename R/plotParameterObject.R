@@ -24,7 +24,11 @@
 #' 
 plot.Rcpp_ROCParameter <- function(x, what = "Mutation", samples = 100, mixture.name = NULL, with.ci = TRUE, ...)
 {
+<<<<<<< HEAD
+  plotParameterObject(x, what = "Mutation", samples = 100, ...)
+=======
   plotParameterObject(x, what = what, samples= samples, mixture.name=mixture.name, with.ci=with.ci, ...)
+>>>>>>> upstream/master
 }
 
 
@@ -54,7 +58,11 @@ plot.Rcpp_ROCParameter <- function(x, what = "Mutation", samples = 100, mixture.
 #' 
 plot.Rcpp_FONSEParameter <- function(x, what = "Mutation", samples = 100, mixture.name = NULL, with.ci = TRUE, ...)
 {
+<<<<<<< HEAD
+  plotParameterObject(x, what = "Mutation", samples = 100, ...)
+=======
   plotParameterObject(x, what = what, samples=samples,mixture.name = mixture.name, with.ci=with.ci, ...)
+>>>>>>> upstream/master
 }
 
 ### NOT EXPOSED
@@ -65,9 +73,15 @@ plotParameterObject <- function(x, what = "Mutation", samples = 100, mixture.nam
   sd.values <- data.frame(matrix(0,ncol=numMixtures*2,nrow=40))
   names.aa <- aminoAcids()
   paramType <- ifelse(what == "Mutation", 0, 1)
+<<<<<<< HEAD
+  for(mixture in 1:numMixtures){
+    param.storage <- vector("numeric", 0)
+    param.name.storage <- vector("numeric", 0)
+=======
   #cat("ParamType: ", paramType, "\n")
   
   for (mixture in 1:numMixtures) {
+>>>>>>> upstream/master
     # get codon specific parameter
     count <- 1
     for (aa in names.aa) {

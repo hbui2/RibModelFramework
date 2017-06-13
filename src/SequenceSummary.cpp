@@ -5,52 +5,6 @@
 using namespace Rcpp;
 #endif
 
-const std::string SequenceSummary::Ser2 = "Z";
-
-const std::vector<std::string> SequenceSummary::AminoAcidArray = {"A", "C", "D", "E", "F", "G", "H", "I", "K", "L",
-	"M", "N", "P", "Q", "R", "S", "T", "V", "W", "Y", SequenceSummary::Ser2, "X"};
-
-const std::string SequenceSummary::codonArray[] =
-		{"GCA", "GCC", "GCG", "GCT", "TGC", "TGT", "GAC", "GAT", "GAA", "GAG",
-		 "TTC", "TTT", "GGA", "GGC", "GGG", "GGT", "CAC", "CAT", "ATA", "ATC",
-		 "ATT", "AAA", "AAG", "CTA", "CTC", "CTG", "CTT", "TTA", "TTG", "ATG",
-		 "AAC", "AAT", "CCA", "CCC", "CCG", "CCT", "CAA", "CAG", "AGA", "AGG",
-		 "CGA", "CGC", "CGG", "CGT", "TCA", "TCC", "TCG", "TCT", "ACA", "ACC",
-		 "ACG", "ACT", "GTA", "GTC", "GTG", "GTT", "TGG", "TAC", "TAT", "AGC",
-		 "AGT", "TAA", "TAG", "TGA"};
-
-const std::string SequenceSummary::codonArrayParameter[] =
-		{"GCA", "GCC", "GCG", "TGC", "GAC",
-		 "GAA", "TTC", "GGA", "GGC", "GGG",
-		 "CAC", "ATA", "ATC", "AAA", "CTA",
-		 "CTC", "CTG", "CTT", "TTA", "AAC",
-		 "CCA", "CCC", "CCG", "CAA", "AGA",
-		 "AGG", "CGA", "CGC", "CGG", "TCA",
-		 "TCC", "TCG", "ACA", "ACC", "ACG",
-		 "GTA", "GTC", "GTG", "TAC", "AGC"};
-
-const std::map<std::string, unsigned> SequenceSummary::aaToIndex = {{"A", 0}, {"C", 1}, {"D", 2}, {"E", 3}, {"F", 4},
-	{"G", 5}, {"H", 6}, {"I", 7}, {"K", 8}, {"L", 9}, {"M", 10}, {"N", 11}, {"P", 12}, {"Q", 13}, {"R", 14}, {"S", 15},
-	{"T", 16}, {"V", 17}, {"W", 18}, {"Y", 19}, {SequenceSummary::Ser2, 20}, {"X", 21}};
-
-const std::map<std::string, unsigned> SequenceSummary::codonToIndexWithReference = {{"GCA", 0}, {"GCC", 1}, {"GCG", 2},
-	{"GCT", 3}, {"TGC", 4}, {"TGT", 5}, {"GAC", 6}, {"GAT", 7}, {"GAA", 8}, {"GAG", 9}, {"TTC", 10}, {"TTT", 11},
-	{"GGA", 12}, {"GGC", 13}, {"GGG", 14}, {"GGT", 15}, {"CAC", 16}, {"CAT", 17}, {"ATA", 18}, {"ATC", 19}, {"ATT", 20},
-	{"AAA", 21}, {"AAG", 22}, {"CTA", 23}, {"CTC", 24}, {"CTG", 25}, {"CTT", 26}, {"TTA", 27}, {"TTG", 28}, {"ATG", 29},
-	{"AAC", 30}, {"AAT", 31}, {"CCA", 32}, {"CCC", 33}, {"CCG", 34}, {"CCT", 35}, {"CAA", 36}, {"CAG", 37}, {"AGA", 38},
-	{"AGG", 39}, {"CGA", 40}, {"CGC", 41}, {"CGG", 42}, {"CGT", 43}, {"TCA", 44}, {"TCC", 45}, {"TCG", 46}, {"TCT", 47},
-	{"ACA", 48}, {"ACC", 49}, {"ACG", 50}, {"ACT", 51}, {"GTA", 52}, {"GTC", 53}, {"GTG", 54}, {"GTT", 55}, {"TGG", 56},
-	{"TAC", 57}, {"TAT", 58}, {"AGC", 59}, {"AGT", 60}, {"TAA", 61}, {"TAG", 62}, {"TGA", 63}};
-
-const std::map<std::string, unsigned> SequenceSummary::codonToIndexWithoutReference = {{"GCA", 0}, {"GCC", 1},
-	{"GCG", 2}, {"TGC", 3}, {"GAC", 4}, {"GAA", 5}, {"TTC", 6}, {"GGA", 7}, {"GGC", 8}, {"GGG", 9}, {"CAC", 10},
-	{"ATA", 11}, {"ATC", 12}, {"AAA", 13}, {"CTA", 14}, {"CTC", 15}, {"CTG", 16}, {"CTT", 17}, {"TTA", 18}, {"AAC", 19},
-	{"CCA", 20}, {"CCC", 21}, {"CCG", 22}, {"CAA", 23}, {"AGA", 24}, {"AGG", 25}, {"CGA", 26}, {"CGC", 27}, {"CGG", 28},
-	{"TCA", 29}, {"TCC", 30}, {"TCG", 31}, {"ACA", 32}, {"ACC", 33}, {"ACG", 34}, {"GTA", 35}, {"GTC", 36}, {"GTG", 37},
-	{"TAC", 38}, {"AGC", 39}};
-
-
-
 //------------------------------------------------//
 //---------- Constructors & Destructors ----------//
 //------------------------------------------------//
@@ -126,7 +80,8 @@ SequenceSummary::~SequenceSummary()
 
 unsigned SequenceSummary::getAACountForAA(std::string aa)
 {
-	return naa[aaToIndex.find(aa)->second];
+	CodonTable *ct = CodonTable::getInstance();
+	return naa[ct->AAToAAIndex(aa)];
 }
 
 
@@ -138,7 +93,8 @@ unsigned SequenceSummary::getAACountForAA(unsigned aaIndex)
 
 unsigned SequenceSummary::getCodonCountForCodon(std::string& codon)
 {
-	return ncodons[codonToIndex(codon)];
+	CodonTable *ct = CodonTable::getInstance();
+	return ncodons[ct->codonToIndex(codon)];
 }
 
 
@@ -150,8 +106,9 @@ unsigned SequenceSummary::getCodonCountForCodon(unsigned codonIndex)
 
 std::vector <unsigned> *SequenceSummary::getCodonPositions(std::string codon)
 {
-	unsigned codonIndex = codonToIndex(codon);
-	return getCodonPositions(codonIndex);
+    CodonTable *ct = CodonTable::getInstance();
+    unsigned codonIndex = ct->codonToIndex(codon);
+    return getCodonPositions(codonIndex);
 }
 
 
@@ -286,8 +243,9 @@ void SequenceSummary::setPositionCodonID(std::vector <unsigned> arg)
  */
 unsigned SequenceSummary::getRFPValue(std::string codon, unsigned RFPCountColumn)
 {
+    CodonTable *ct = CodonTable::getInstance();
 	if (sumRFPCount.size() < RFPCountColumn + 1) initSumRFPCount(RFPCountColumn + 1);
-	return sumRFPCount[RFPCountColumn][codonToIndex(codon)];
+	return sumRFPCount[RFPCountColumn][ct->codonToIndex(codon)];
 }
 
 
@@ -337,6 +295,7 @@ void SequenceSummary::clear()
 bool SequenceSummary::processSequence(const std::string& sequence)
 {
 	bool check = true;
+    CodonTable *ct = CodonTable::getInstance();
 	codonPositions.resize(64);
 
 	for (unsigned i = 0u; i < sequence.length(); i += 3)
@@ -346,10 +305,10 @@ bool SequenceSummary::processSequence(const std::string& sequence)
 		codon[1] = (char)std::toupper(codon[1]);
 		codon[2] = (char)std::toupper(codon[2]);
 
-		unsigned codonID = codonToIndex(codon);
+		codonID = ct->codonToIndex(codon);
 		if (codonID != 64) // if codon id == 64 => codon not found. Ignore, probably N 
 		{
-			int aaID = codonToAAIndex(codon);
+			int aaID = ct->codonToAAIndex(codon);
 			ncodons[codonID]++;
 			naa[aaID]++;
 			codonPositions[codonID].push_back(i / 3);
@@ -453,7 +412,7 @@ void SequenceSummary::AAToCodonRange(std::string aa, unsigned& startAAIndex, uns
 	//unsigned startAAIndex = 0u;
 	//unsigned endAAIndex = 0u;
 	char AA = aa[0];
-	
+
 	switch (AA)
 	{
 	case 'A':
@@ -660,7 +619,7 @@ unsigned SequenceSummary::codonToIndex(std::string& codon, bool forParamVector)
 	{
 		i = 64;
 	}
-	else 
+	else
 	{
 		if (forParamVector)
 			i = SequenceSummary::codonToIndexWithoutReference.find(codon) -> second;
@@ -764,10 +723,8 @@ unsigned SequenceSummary::GetNumCodonsForAA(std::string& aa, bool forParamVector
 	case 'X':
 		ncodon = 3;
 		break;
-		default: // INVALID AA
-
+	default: // INVALID AA
 		my_printError("WARNING: Invalid Amino Acid given (%), returning 0,0\n", aa);
-
 		break;
 	}
 	return (forParamVector ? (ncodon - 1) : ncodon);
@@ -833,4 +790,3 @@ RCPP_MODULE(SequenceSummary_mod)
 
 }
 #endif
-

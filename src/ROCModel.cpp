@@ -39,7 +39,8 @@ double ROCModel::calculateLogLikelihoodPerAAPerGene(unsigned numCodons, int codo
 
 double ROCModel::calculateMutationPrior(std::string grouping, bool proposed)
 {
-	unsigned numCodons = SequenceSummary::GetNumCodonsForAA(grouping, true);
+	CodonTable *ct = CodonTable::getInstance();
+	unsigned numCodons = ct -> getNumCodonsForAA(grouping, true);
 	double mutation[5];
 
 	double priorValue = 0.0;
@@ -58,13 +59,14 @@ double ROCModel::calculateMutationPrior(std::string grouping, bool proposed)
 
 void ROCModel::obtainCodonCount(SequenceSummary *seqsum, std::string curAA, int codonCount[])
 {
-	unsigned aaStart;
-	unsigned aaEnd;
-	SequenceSummary::AAToCodonRange(curAA, aaStart, aaEnd, false);
+	CodonTable *ct = CodonTable::getInstance();
+	std::vector <unsigned> codonRange = ct->AAToCodonRange(curAA, false);
 	// get codon counts for AA
 	unsigned j = 0u;
-	for (unsigned i = aaStart; i < aaEnd; i++, j++)
-		codonCount[j] = seqsum->getCodonCountForCodon(i);
+	for(unsigned i = 0; i < codonRange.size(); i++, j++)
+	{
+		codonCount[j] = seqsum->getCodonCountForCodon(codonRange[i]);
+	}
 }
 
 
@@ -78,6 +80,8 @@ void ROCModel::obtainCodonCount(SequenceSummary *seqsum, std::string curAA, int 
 
 void ROCModel::calculateLogLikelihoodRatioPerGene(Gene& gene, unsigned geneIndex, unsigned k, double* logProbabilityRatio)
 {
+	CodonTable *ct = CodonTable::getInstance();
+	std::vector <std::string> aaListing = ct->getGroupList();
 	double logLikelihood = 0.0;
 	double logLikelihood_proposed = 0.0;
 
@@ -98,15 +102,15 @@ void ROCModel::calculateLogLikelihoodRatioPerGene(Gene& gene, unsigned geneIndex
 //#ifndef __APPLE__
 #pragma omp parallel for private(mutation, selection, codonCount) reduction(+:logLikelihood,logLikelihood_proposed)
 #endif
-	for (unsigned i = 0u; i < getGroupListSize(); i++)
+	for(int i = 0; i < aaListing.size(); i++)
 	{
-		std::string curAA = getGrouping(i);
+		std::string curAA = aaListing[i];
 
 		// skip amino acids which do not occur in current gene. Avoid useless calculations and multiplying by 0
 		if (seqsum->getAACountForAA(i) == 0) continue;
 
 		// get number of codons for AA (total number not parameter->count)
-		unsigned numCodons = seqsum->GetNumCodonsForAA(curAA);
+		unsigned numCodons = ct->getNumCodonsForAA(curAA);
 		// get mutation and selection parameter->for gene
 		parameter->getParameterForCategory(mutationCategory, ROCParameter::dM, curAA, false, mutation);
 		parameter->getParameterForCategory(selectionCategory, ROCParameter::dEta, curAA, false, selection);
@@ -153,8 +157,9 @@ void ROCModel::calculateLogLikelihoodRatioPerGene(Gene& gene, unsigned geneIndex
  
 void ROCModel::calculateLogLikelihoodRatioPerGroupingPerCategory(std::string grouping, Genome& genome, std::vector<double> &logAcceptanceRatioForAllMixtures)
 {
+	CodonTable *ct = CodonTable::getInstance();
 	int numGenes = genome.getGenomeSize();
-	unsigned numCodons = SequenceSummary::GetNumCodonsForAA(grouping);
+	int numCodons = ct -> getNumCodonsForAA(grouping);
 	double likelihood = 0.0;
 	double likelihood_proposed = 0.0;
 	double posterior, posterior_proposed;
@@ -166,7 +171,8 @@ void ROCModel::calculateLogLikelihoodRatioPerGroupingPerCategory(std::string gro
 	int codonCount[6];
 	Gene *gene;
 	SequenceSummary *seqsum;
-	unsigned aaIndex = SequenceSummary::AAToAAIndex(grouping);
+    unsigned aaIndex = ct -> AAToAAIndex(grouping);
+	//unsigned aaIndex = SequenceSummary::AAToAAIndex(grouping);
 #ifdef _OPENMP
 //#ifndef __APPLE__
 #pragma omp parallel for private(mutation, selection, mutation_proposed, selection_proposed, codonCount, gene, seqsum) reduction(+:likelihood,likelihood_proposed)
@@ -484,7 +490,8 @@ void ROCModel::updateHyperParameterTraces(unsigned sample)
 
 void ROCModel::updateTracesWithInitialValues(Genome &genome)
 {
-	std::vector <std::string> groupList = parameter->getGroupList();
+	CodonTable *ct = CodonTable::getInstance();
+	std::vector <std::string> aaListing = ct->getGroupList();
 
 	// for (unsigned i = 0; i < genome.getGenomeSize(); i++)
 	// {
@@ -492,8 +499,10 @@ void ROCModel::updateTracesWithInitialValues(Genome &genome)
 	// 	parameter->updateMixtureAssignmentTrace(0, i);
 	// }
 
-	for (unsigned i = 0; i < groupList.size(); i++)
-		parameter->updateCodonSpecificParameterTrace(0, getGrouping(i));
+	for (unsigned i = 0; i < aaListing.size(); i++)
+	{
+		parameter->updateCodonSpecificParameterTrace(0, aaListing[i]);
+	}
 }
 
 
@@ -668,6 +677,7 @@ void ROCModel::updateHyperParameter(unsigned hp)
 void ROCModel::simulateGenome(Genome &genome)
 {
 	unsigned codonIndex;
+	CodonTable *ct = CodonTable::getInstance();
 
 	std::string tmpDesc = "Simulated Gene";
 
@@ -688,14 +698,14 @@ void ROCModel::simulateGenome(Genome &genome)
 		for (unsigned position = 1; position < (geneSeq.size() / 3); position++)
 		{
 			std::string codon = geneSeq.substr((position * 3), 3);
-			std::string aa = SequenceSummary::codonToAA(codon);
+			std::string aa = ct -> codonToAA(codon);
 
 			if (aa == "X") {
 				if (position < (geneSeq.size() / 3) - 1) my_print("Warning: Internal stop codon found in gene % at position %. Ignoring and moving on.\n", gene.getId(), position);
 				continue;
 			}
 
-			unsigned numCodons = SequenceSummary::GetNumCodonsForAA(aa);
+			unsigned numCodons = ct -> getNumCodonsForAA(aa);
 
 			double* codonProb = new double[numCodons](); //size the arrays to the proper size based on # of codons.
 			double* mutation = new double[numCodons - 1]();
@@ -713,13 +723,11 @@ void ROCModel::simulateGenome(Genome &genome)
 
 
 			codonIndex = Parameter::randMultinom(codonProb, numCodons);
-			unsigned aaStart;
-			unsigned aaEnd;
-			SequenceSummary::AAToCodonRange(aa, aaStart, aaEnd, false); //need the first spot in the array where the codons for curAA are
-			codon = seqSum.indexToCodon(aaStart + codonIndex);//get the correct codon based off codonIndex
+			std::vector <unsigned> codonRange = ct->AAToCodonRange(aa, false); //need the first spot in the array where the codons for curAA are
+			codon = ct -> indexToCodon(codonRange[codonIndex]);//get the correct codon based off codonIndex
 			tmpSeq += codon;
 		}
-		std::string codon =	seqSum.indexToCodon((unsigned)Parameter::randUnif(61.0, 64.0)); //randomly choose a stop codon, from range 61-63
+		std::string codon =	ct -> indexToCodon((unsigned)Parameter::randUnif(61.0, 64.0)); //randomly choose a stop codon, from range 61-63
 		tmpSeq += codon;
 		Gene simulatedGene(tmpSeq, tmpDesc, gene.getId());
 		genome.addGene(simulatedGene, true);
@@ -773,12 +781,14 @@ void ROCModel::setParameter(ROCParameter &_parameter)
 
 double ROCModel::calculateAllPriors()
 {
+	CodonTable *ct = CodonTable::getInstance();
+	std::vector <std::string> aaListing = ct->getGroupList();
 	double prior = 0.0;
-	unsigned size = getGroupListSize();
+	unsigned size = aaListing.size();
 
 	for (unsigned i = 0; i < size; i++)
 	{
-		std::string grouping = getGrouping(i);
+		std::string grouping = aaListing[i];
 		prior += calculateMutationPrior(grouping, false);
 	}
 

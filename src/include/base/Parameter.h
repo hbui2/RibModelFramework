@@ -23,7 +23,7 @@
  * These two functions are technically the same for readability.
  * Selection and Synthesis Rate are directly related even if they are not known
  * and thus are represented by the same variable. By splitting this
- * into Selection and Synthesis, avoids confusing the two, however.
+ * into Selection and Synthesis we avoid confusing the two contexts.
 */
 
 class Parameter {

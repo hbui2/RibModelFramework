@@ -69,6 +69,7 @@ Gene& Gene::operator=(const Gene& rhs)
     description = rhs.description;
     geneData = rhs.geneData;
     observedSynthesisRateValues = rhs.observedSynthesisRateValues;
+    //assignment operator
     return *this;
 }
 
@@ -421,11 +422,12 @@ Gene Gene::reverseComplement()
 */
 std::string Gene::toAASequence()
 {
+	CodonTable *ct = CodonTable::getInstance();
     std::string aaseq = "";
     for (unsigned i = 0; i < seq.length(); i+=3)
     {
         std::string codon = seq.substr(i, 3);
-        aaseq += SequenceSummary::codonToAA(codon);
+        aaseq += ct->codonToAA(codon);
     }
     return aaseq;
 }
@@ -444,9 +446,11 @@ std::string Gene::toAASequence()
 
 unsigned Gene::getAACount(std::string aa)
 {
+	CodonTable *ct = CodonTable::getInstance();
+
     unsigned rv = 0;
 
-    if (SequenceSummary::aaToIndex.end() != SequenceSummary::aaToIndex.find(aa))
+    if (ct->AAToAAIndex(aa) != 42)
     {
         rv = geneData.getAACountForAA(aa);
     }
@@ -460,9 +464,10 @@ unsigned Gene::getAACount(std::string aa)
 
 unsigned Gene::getCodonCount(std::string& codon)
 {
+	CodonTable *ct = CodonTable::getInstance();
     unsigned rv = 0;
 
-    if (SequenceSummary::codonToIndexWithReference.end() != SequenceSummary::codonToIndexWithReference.find(codon))
+    if (ct->codonToIndex(codon) != 64)
     {
         rv = geneData.getCodonCountForCodon(codon);
     }
@@ -480,9 +485,10 @@ unsigned Gene::getCodonCount(std::string& codon)
 // Note: From function definition in header, default category is 1.
 unsigned Gene::getRFPValue(std::string codon, unsigned RFPCountColumn)
 {
+	CodonTable *ct = CodonTable::getInstance();
     unsigned rv = 0;
 
-    if (SequenceSummary::codonToIndexWithReference.end() != SequenceSummary::codonToIndexWithReference.find(codon))
+    if (64 != ct->codonToIndex(codon))
     {
         // Convert RFPCountColumn to 0-indexing internally
         rv = geneData.getRFPValue(codon, RFPCountColumn - 1);
@@ -497,12 +503,13 @@ unsigned Gene::getRFPValue(std::string codon, unsigned RFPCountColumn)
 
 std::vector <unsigned> Gene::getCodonPositions(std::string codon)
 {
+	CodonTable *ct = CodonTable::getInstance();
     std::vector <unsigned> rv;
     std::vector <unsigned> *tmp;
     tmp = &rv; //So if an invalid codon is given, tmp will point to an empty vector.
 
 
-    if (SequenceSummary::codonToIndexWithReference.end() != SequenceSummary::codonToIndexWithReference.find(codon))
+    if (64 != ct->codonToIndex(codon))
     {
         tmp = geneData.getCodonPositions(codon);
     }

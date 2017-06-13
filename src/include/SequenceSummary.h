@@ -11,6 +11,7 @@
 #include <cctype>
 #include <vector>
 #include <array>
+#include "CodonTable.h"
 
 #ifndef STANDALONE
 #include <Rcpp.h>

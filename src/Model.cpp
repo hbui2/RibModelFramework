@@ -17,7 +17,8 @@ Model::~Model()
 
 double Model::calculatePriorForCodonSpecificParam(Parameter *parameter, std::string grouping, unsigned paramType, bool proposed)
 {
-	unsigned numCodons = SequenceSummary::GetNumCodonsForAA(grouping, true); // TODO(Cedric): rename getNumCodonsForGrouping and have it return 1 if grouping is a codon to make it applicable for RFP
+	CodonTable *ct = CodonTable::getInstance();
+	unsigned numCodons = ct->getNumCodonsForAA(grouping, true); // TODO(Cedric): renome getNumCodonsForGrouping and have it return 1 if grouping is a codon to make it applicable for RFP
 	double parameterValues[5];
 
 	double priorValue = 0.0;

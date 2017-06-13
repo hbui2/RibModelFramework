@@ -22,7 +22,10 @@ class PAParameter: public Parameter {
 		double bias_csp;
 
 	public:
+<<<<<<< HEAD:src/include/RFP/RFPParameter.h
+=======
 
+>>>>>>> upstream/master:src/include/PA/PAParameter.h
 		//Constructors & Destructors:
 		explicit PAParameter();
 		PAParameter(std::string filename);

@@ -21,10 +21,12 @@ FONSEModel::~FONSEModel()
 
 double FONSEModel::calculateLogLikelihoodRatioPerAA(Gene& gene, std::string grouping, double *mutation, double *selection, double phiValue)
 {
-	int numCodons = SequenceSummary::GetNumCodonsForAA(grouping);
+	CodonTable *ct = CodonTable::getInstance();
+	int numCodons = ct->getNumCodonsForAA(grouping);
 	double logLikelihood = 0.0;
 
 	std::vector <unsigned> *positions;
+	std::vector <unsigned> codonRange = ct->AAToCodonRange(grouping);
 	std::vector <double> codonProb(6, 0);
 
 	//Find the maximum index
@@ -37,26 +39,24 @@ double FONSEModel::calculateLogLikelihoodRatioPerAA(Gene& gene, std::string grou
 		}
 	}
 
-	unsigned aaStart, aaEnd;
-	SequenceSummary::AAToCodonRange(grouping, aaStart, aaEnd, false);
-	for (unsigned i = aaStart, k = 0; i < aaEnd; i++, k++)
-	{
-		positions = gene.geneData.getCodonPositions(i); 
-		for (unsigned j = 0; j < positions->size(); j++)
-		{
-			calculateLogCodonProbabilityVector(numCodons, positions->at(j), minIndexVal, mutation, selection, phiValue, codonProb); 
-			if (codonProb[k] == 0) continue;
-			logLikelihood += codonProb[k];
-		} 
+	for (unsigned i = 0; i < codonRange.size(); i++) {
+		positions = gene.geneData.getCodonPositions(codonRange[i]);
+		for (unsigned j = 0; j < positions->size(); j++) {
+			calculateCodonProbabilityVector(numCodons, positions->at(j), maxIndexVal, mutation, selection, phiValue, codonProb);
+			if (codonProb[i] == 0) continue;
+			logLikelihood += codonProb[i];
+		}
 		//positions->clear();
 	}
- 	return logLikelihood;
+
+	return logLikelihood;	
 }
 
 
 double FONSEModel::calculateMutationPrior(std::string grouping, bool proposed)
 {
-	unsigned numCodons = SequenceSummary::GetNumCodonsForAA(grouping, true);
+	CodonTable *ct = CodonTable::getInstance();
+	unsigned numCodons = ct->getNumCodonsForAA(grouping);
 	double mutation[5];
 
 	double priorValue = 0.0;
@@ -85,6 +85,7 @@ double FONSEModel::calculateMutationPrior(std::string grouping, bool proposed)
 
 void FONSEModel::calculateLogLikelihoodRatioPerGene(Gene& gene, unsigned geneIndex, unsigned k, double* logProbabilityRatio)
 {
+	CodonTable *ct = CodonTable::getInstance();
 	double likelihood = 0.0;
 	double likelihood_proposed = 0.0;
 	std::string curAA;
@@ -102,6 +103,7 @@ void FONSEModel::calculateLogLikelihoodRatioPerGene(Gene& gene, unsigned geneInd
 	double phiValue = parameter->getSynthesisRate(geneIndex, expressionCategory, false);
 	double phiValue_proposed = parameter->getSynthesisRate(geneIndex, expressionCategory, true);
 
+	std::vector <std::string> aaListing = ct->getGroupList();
 
 	/* This loop causes a compiler warning because i is an int, but openMP won't compile if I change i to unsigned.
 		Maybe worth looking into? */
@@ -109,9 +111,10 @@ void FONSEModel::calculateLogLikelihoodRatioPerGene(Gene& gene, unsigned geneInd
 //#ifndef __APPLE__
 #pragma omp parallel for private(mutation, selection, positions, curAA) reduction(+:likelihood,likelihood_proposed)
 #endif
-	for (unsigned i = 0u; i < getGroupListSize(); i++)
+	for (unsigned i = 0u; i < aaListing.size(); i++)
 	{
-		curAA = getGrouping(i);
+		curAA = aaListing[i];
+		if (curAA == "W" || curAA == "M" || curAA == "X") continue;
 
 		parameter->getParameterForCategory(mutationCategory, FONSEParameter::dM, curAA, false, mutation);
 		parameter->getParameterForCategory(selectionCategory, FONSEParameter::dOmega, curAA, false, selection);
@@ -149,7 +152,6 @@ void FONSEModel::calculateLogLikelihoodRatioPerGene(Gene& gene, unsigned geneInd
 	logProbabilityRatio[3] = currentLogLikelihood;
 	logProbabilityRatio[4] = proposedLogLikelihood;
 }
-
 
 void FONSEModel::calculateLogLikelihoodRatioPerGroupingPerCategory(std::string grouping, Genome& genome, std::vector<double> &logAcceptanceRatioForAllMixtures)
 {
@@ -581,6 +583,7 @@ void FONSEModel::simulateGenome(Genome & genome)
 {
 	unsigned codonIndex;
 	std::string curAA;
+	CodonTable *ct = CodonTable::getInstance();
 
 	std::string tmpDesc = "Simulated Gene";
 
@@ -599,10 +602,11 @@ void FONSEModel::simulateGenome(Genome & genome)
 		double phi = getSynthesisRate(geneIndex, synthesisRateCategory, false);
 
 		std::string geneSeq = gene.getSequence();
+		//TODO: Exchange hard coded values for codon table
 		for (unsigned position = 1; position < (geneSeq.size() / 3); position++)
 		{
 			std::string codon = geneSeq.substr((position * 3), 3);
-			curAA = SequenceSummary::codonToAA(codon);
+			curAA = ct->codonToAA(codon);
 
 			//TODO: Throw an error here instead
 			if (curAA == "X") {
@@ -610,14 +614,14 @@ void FONSEModel::simulateGenome(Genome & genome)
 				continue;
 			}
 
-			unsigned numCodons = SequenceSummary::GetNumCodonsForAA(curAA);
+			unsigned numCodons = ct->getNumCodonsForAA(curAA);
 
 			double* codonProb = new double[numCodons](); //size the arrays to the proper size based on # of codons.
 			double* mutation = new double[numCodons - 1]();
 			double* selection = new double[numCodons - 1]();
 
 
-			if (curAA == "M" || curAA == "W")
+			if (ct->getNumCodonsForAA(curAA) == 1)
 			{
 				codonProb[0] = 1;
 			}
@@ -627,16 +631,12 @@ void FONSEModel::simulateGenome(Genome & genome)
 				getParameterForCategory(selectionCategory, FONSEParameter::dOmega, curAA, false, selection);
 				calculateCodonProbabilityVector(numCodons, position, mutation, selection, phi, codonProb);
 			}
-
-
 			codonIndex = Parameter::randMultinom(codonProb, numCodons);
-			unsigned aaStart;
-			unsigned aaEnd;
-			SequenceSummary::AAToCodonRange(curAA, aaStart, aaEnd, false);  //need the first spot in the array where the codons for curAA are
-			codon = seqSum.indexToCodon(aaStart + codonIndex);//get the correct codon based off codonIndex
+			std::vector <unsigned> aaRange = ct->AAToCodonRange(curAA); //need the first spot in the array where the codons for curAA are
+			codon = ct->indexToCodon(aaRange[codonIndex]);//get the correct codon based off codonIndex
 			tmpSeq += codon;
 		}
-		std::string codon = seqSum.indexToCodon((unsigned)Parameter::randUnif(61.0, 64.0)); //randomly choose a stop codon, from range 61-63
+		std::string codon = ct->indexToCodon((unsigned)Parameter::randUnif(61.0, 64.0)); //randomly choose a stop codon, from range 61-63
 		tmpSeq += codon;
 		Gene simulatedGene(tmpSeq, tmpDesc, gene.getId());
 		genome.addGene(simulatedGene, true);
@@ -672,12 +672,12 @@ void FONSEModel::setParameter(FONSEParameter &_parameter)
 
 double FONSEModel::calculateAllPriors()
 {
+	CodonTable *ct = CodonTable::getInstance();
 	double priorRatio = 0.0;
-	unsigned size = getGroupListSize();
-
-	for (unsigned i = 0; i < size; i++)
+	std::vector <std::string> groupList = ct->getGroupList();
+	for (unsigned i = 0; i < groupList.size(); i++)
 	{
-		std::string grouping = getGrouping(i);
+		std::string grouping = groupList[i];
 		priorRatio += calculateMutationPrior(grouping, false);
 	}
 

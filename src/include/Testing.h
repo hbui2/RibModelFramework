@@ -6,6 +6,17 @@
 #include "SequenceSummary.h"
 #include "Gene.h"
 #include "Genome.h"
+<<<<<<< HEAD
+
+
+void testSequenceSummary();
+void testGene();
+void testGenome(std::string testFileDir);
+void testCodonTable();
+void initMutation(std::vector<double> mutationValues, unsigned mixtureElement, std::string aa);
+
+
+=======
 #include "base/Parameter.h"
 #include "CovarianceMatrix.h"
 #include "MCMCAlgorithm.h"
@@ -21,6 +32,7 @@ int testParameter();
 int testCovarianceMatrix();
 //int testPAParameter(); //TODO: Rework or remove
 int testMCMCAlgorithm();
+>>>>>>> upstream/master
 
 //Blank header
 #endif // Testing_H

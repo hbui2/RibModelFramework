@@ -1114,22 +1114,26 @@ unsigned Parameter::getMixtureAssignment(unsigned gene)
 
 std::vector <std::vector <double> > Parameter::calculateSelectionCoefficients(unsigned sample, unsigned mixture)
 {
+	CodonTable *ct = CodonTable::getInstance();
+	std::vector <std::string> aaListing = ct->getGroupList();
+	
 	unsigned numGenes = mixtureAssignment.size();
 	std::vector<std::vector<double>> selectionCoefficients;
 	selectionCoefficients.resize(numGenes);
 	for (unsigned i = 0; i < numGenes; i++)
 	{
-		for (unsigned j = 0; j < getGroupListSize(); j++)
+		for (unsigned j = 0; j < aaListing.size(); j++)
 		{
 
 			std::string aa = getGrouping(j);
-			unsigned aaStart, aaEnd;
-			SequenceSummary::AAToCodonRange(aa, aaStart, aaEnd, true);
-				std::vector<double> tmp;
+			unsigned aaStart;
+			unsigned aaEnd;
+			std::vector <unsigned> codonRange = ct->AAToCodonRange(aa, true);
+			std::vector<double> tmp;
 			double minValue = 0.0;
-			for (unsigned k = aaStart; k < aaEnd; k++)
+			for (unsigned k = 0; k < codonRange.size(); k++)
 			{
-				std::string codon = SequenceSummary::codonArrayParameter[k];
+				std::string codon = ct->codonArray[codonRange[k]];
 				tmp.push_back(getCodonSpecificPosteriorMean(sample, mixture, codon, 1));
 				if (tmp[k] < minValue)
 				{
@@ -1261,16 +1265,20 @@ void Parameter::adaptCodonSpecificParameterProposalWidth(unsigned adaptationWidt
 	my_print("Acceptance rate for Codon Specific Parameter\n");
 	my_print("\tAA\tAcc.Rat\n"); //Prop.Width\n";
 
-	for (unsigned i = 0; i < groupList.size(); i++)
+    CodonTable *ct = CodonTable::getInstance();
+    std::vector <std::string> aaListing = ct->getGroupList();
+    
+	for (unsigned i = 0; i < aaListing.size(); i++)
 	{
-		std::string aa = groupList[i];
-		unsigned aaIndex = SequenceSummary::AAToAAIndex(aa);
+		std::string aa = aaListing[i];
+		unsigned aaIndex = ct->AAToAAIndex(aa);
 		double acceptanceLevel = (double)numAcceptForCodonSpecificParameters[aaIndex] / (double)adaptationWidth;
 		traces.updateCodonSpecificAcceptanceRateTrace(aaIndex, acceptanceLevel);
 		if (adapt)
 		{
 			unsigned aaStart, aaEnd;
-			SequenceSummary::AAToCodonRange(aa, aaStart, aaEnd, true);
+			//SequenceSummary::AAToCodonRange(aa, aaStart, aaEnd, true);
+            std::vector <unsigned> codonRange = ct->AAToCodonRange(aa, true);
 			my_print("\t%:\t%\n", aa.c_str(), acceptanceLevel);
 
 			//Gelman BDA 3rd Edition suggests a target acceptance rate of 0.23
@@ -1280,7 +1288,7 @@ void Parameter::adaptCodonSpecificParameterProposalWidth(unsigned adaptationWidt
 			{
 			  
 			  if (acceptanceLevel < 0.1)
-					for (unsigned k = aaStart; k < aaEnd; k++)
+					for (unsigned k = 0; k < codonRange.size(); k++)
 						covarianceMatrix[aaIndex] *= 0.8;
 				else
 				{
@@ -1303,14 +1311,14 @@ void Parameter::adaptCodonSpecificParameterProposalWidth(unsigned adaptationWidt
 
 				//Adjust proposal width if for codon specific parameters
 				//These values are used when you are not using a cov to propose new parameter values.
-				for (unsigned k = aaStart; k < aaEnd; k++)
+				for (unsigned k = 0; k < codonRange.size(); k++)
 					std_csp[k] *= 0.8;
 			}
 			if (acceptanceLevel > 0.3)
 			{
 				//covarianceMatrix[aaIndex].calculateSampleCovariance(*traces.getCodonSpecificParameterTrace(), aa,
 				// samples, adaptiveStepCurr);
-				for (unsigned k = aaStart; k < aaEnd; k++)
+				for (unsigned k = 0; k < codonRange.size(); k++)
 				{
 					std_csp[k] *= 1.2;
     				covarianceMatrix[aaIndex] *= 1.2;                    
@@ -1663,25 +1671,26 @@ int Parameter::pivotPair(double a[], int b[], int first, int last)
 // http://www.tandfonline.com/doi/pdf/10.1080/03081070500502967 */
 double Parameter::calculateSCUO(Gene& gene, unsigned maxAA)
 {
+	CodonTable *ct = CodonTable::getInstance();
+	std::vector <std::string> aaListing = ct->getGroupList();
 	SequenceSummary *seqsum = gene.getSequenceSummary();
 
 	double totalDegenerateAACount = 0.0;
-	for (unsigned i = 0; i < maxAA; i++)
+	for(unsigned i = 0; i < aaListing.size(); i++)
 	{
-		std::string curAA = SequenceSummary::AminoAcidArray[i];
+		std::string curAA = aaListing[i];
 		// skip amino acids with only one codon or stop codons
 		if (curAA == "X" || curAA == "M" || curAA == "W") continue;
 		totalDegenerateAACount += (double)seqsum->getAACountForAA(i);
 	}
 
 	double scuoValue = 0.0;
-	for (unsigned i = 0; i < maxAA; i++)
+	for(unsigned i = 0; i < aaListing.size(); i++)
 	{
-		std::string curAA = SequenceSummary::AminoAcidArray[i];
+		std::string curAA = aaListing[i];
 		// skip amino acids with only one codon or stop codons
 		if (curAA == "X" || curAA == "M" || curAA == "W") continue;
-		double numDegenerateCodons = SequenceSummary::GetNumCodonsForAA(curAA);
-
+		double numDegenerateCodons = ct->getNumCodonsForAA(curAA);
 		double aaCount = (double)seqsum->getAACountForAA(i);
 		if (aaCount == 0) continue;
 
@@ -1690,7 +1699,7 @@ double Parameter::calculateSCUO(Gene& gene, unsigned maxAA)
 
 		// calculate -sum(pij log(pij))
 		double aaEntropy = 0.0;
-		for (unsigned k = start; k < end; k++)
+		for(unsigned k = 0; k < codonRange.size(); k++)
 		{
 			int currCodonCount = seqsum->getCodonCountForCodon(k);
 			if (currCodonCount == 0) continue;

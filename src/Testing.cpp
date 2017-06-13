@@ -1075,6 +1075,7 @@ int testGene()
     Gene testGene;
     int error = 0;
     int globalError = 0;
+	CodonTable *ct = CodonTable::getInstance();
 
     //---------------------------------//
     //------ get/setId Functions ------//
@@ -1207,7 +1208,7 @@ int testGene()
         if (SS.getCodonCountForCodon(i) != GeneSS->getCodonCountForCodon(i))
         {
             my_printError("Error in testGene: getSequenceSummary. Codon counts are incorrect for codon %, %.\n",
-                          i, SequenceSummary::codonArray[i]);
+                          i, ct->codonArray[i]);
             my_printError("Should return %, but returns %\n", SS.getCodonCountForCodon(i), GeneSS->getCodonCountForCodon(i));
             error = 1;
             globalError = 1;
@@ -1620,6 +1621,7 @@ int testGenome(std::string testFileDir)
         error = 1;
         globalError = 1;
     }
+	*/
 
     if (!error)
         my_print("Genome get/addGene --- Pass\n");
@@ -1775,6 +1777,7 @@ int testGenome(std::string testFileDir)
         error = 1;
         globalError = 1;
     }
+	*/
 
     if (!error)
         my_print("Genome get/addRFPCategoryNames --- Pass\n");
@@ -1941,6 +1944,215 @@ int testGenome(std::string testFileDir)
         my_printError("Error in testGenome: readPA. Genomes are not equivalent.\n");
         globalError = 1;
     }
+}
+
+void testCodonTable()
+{
+	int error = 0;
+
+
+	/* -------------------------------------------------- */
+	/* ------ getTableId/SplitAA/groupList function ------*/
+	/* -------------------------------------------------- */
+
+	CodonTable codonTable = CodonTable(1, "ROC");
+
+
+	if (0 != codonTable.getTableId()) {
+		std::cerr << "Error in getTableId, should return 1, returns " << codonTable.getTableId() << std::endl;
+		error = 1;
+	}
+
+	if (true != codonTable.getSplitAA()) {
+		std::cerr << "Error in getSplitAA, should return true, returns " << codonTable.getSplitAA() << std::endl;
+		error = 1;
+	}
+
+	std::vector <std::string> testGroupList = { "A", "C", "D", "E", "F", "G", "H", "I", "K", "L", "N", "P", "Q", "R",
+		CodonTable::Ser2, "S", "T", "V", "Y" };
+	if (testGroupList != codonTable.getGroupList()) {
+		std::cerr << "Error in getGroupList\n";
+		error = 1;
+	}
+
+	if (!error)
+	{
+		std::cout << "CodonTable constructor --- Pass" << std::endl;
+	}
+	else
+	{
+		error = 0;
+	}
+	
+	/* ------------------------------- */
+	/* ------ Singleton Testing ------ */
+	/* ------------------------------- */
+
+	CodonTable::createCodonTable(1, "ROC", true);
+	CodonTable *ct = CodonTable::getInstance();
+
+	if (0 != ct->getTableId()) {
+		std::cerr << "Error in singleton getTableId, should return 1, returns " << ct->getTableId() << std::endl;
+		error = 1;
+	}
+
+	if (true != ct->getSplitAA()) {
+		std::cerr << "Error in singleton getSplitAA, should return true, returns " << ct->getSplitAA() << std::endl;
+		error = 1;
+	}
+
+	if (testGroupList != ct->getGroupList()) {
+		std::cerr << "Error in singleton getGroupList\n";
+		error = 1;
+	}
+
+	if (!error)
+	{
+		std::cout << "CodonTable singleton --- Pass" << std::endl;
+	} 
+	else
+	{
+		error = 0;
+	}
+
+	//-----------------------------------//
+	//------ codonToIndex Function ------//
+	//-----------------------------------//
+
+	for (unsigned i = 0; i < 64; i++)
+	{
+		std::string codon = CodonTable::codonArray[i];
+		if (i != CodonTable::codonToIndex(codon))
+		{
+			std::cerr << "Error in codonToIndex Function at index " << i << "\n";
+			error = 1;
+		}
+	}
+
+	if (!error)
+	{
+		std::cout << "codonToIndex function --- Pass\n";
+	}
+	else
+	{
+		error = 0;
+	}
+
+	//-------------------------------------//
+	//------ AA to AA Index function ------//
+	//-------------------------------------//
+
+
+
+	std::vector <std::string> aaListing = ct->aminoAcidArray;
+	for (unsigned i = 0; i < aaListing.size(); i++)
+	{
+		if (ct->AAToAAIndex(aaListing[i]) != i)
+		{
+			std::cerr << "Error in AA To AA index, " << aaListing[i] << " should return " << i << ", returns " << ct->AAToAAIndex(aaListing[i]) << std::endl;
+			error = 1;
+		}
+	}
+
+	if (!error)
+	{
+		std::cout << "AAtoAAIndex function --- Pass\n";
+	}
+	else
+	{
+		error = 0;
+	}
+
+	//----------------------------------//
+	//------ Index to AA function ------//
+	//----------------------------------//
+
+	for (unsigned i = 0; i < 26; i++)
+	{
+		if (ct->aminoAcidArray[i] != ct->indexToAA(i))
+		{
+			std::cerr << "Error in index to AA at " << i << std::endl;
+			error = 1;
+		}
+	}
+
+	if (!error)
+	{
+		std::cout << "indexToAA --- Pass\n";
+	}
+	else
+	{
+		error = 0;
+	}
+
+	//-------------------------------------//
+	//------ AA Index To Codon Range ------//
+	//-------------------------------------//
+
+	std::vector <std::vector <unsigned>> codonRangeTest = { {0,1,2,3}, {4,5}, {6,7}, {8,9}, {10,11}, {12,13,14,15}, {16,17}, {18,19,20}, {21,22}, {23,24,25,26,27,28}, {},
+	{29}, {30,31}, {32,33,34,35}, {36,37}, {38,39,40,41,42,43}, {}, {59,60}, {44,45,46,47}, {48,49,50,51}, {}, {}, {52,53,54,55}, {56}, {57,58}, {61,62,63} };
+
+	for (unsigned i = 0; i < 26; i++)
+	{
+		if (codonRangeTest[i] != ct->AAIndexToCodonRange(i, false))
+		{
+			std::cerr << "Error in AA index to codon range at " << i << std::endl;
+			error = 1;
+		}
+	}
+
+	std::vector <std::vector <unsigned>> codonRangeTest2 = { {0,1,2}, {4}, {6}, {8}, {10}, {12,13,14}, {16}, {18,19}, {21}, {23,24,25,26,27}, {},
+	{}, {30}, {32,33,34}, {36}, {38,39,40,41,42}, {}, {59}, {44,45,46}, {48,49,50}, {}, {}, {52,53,54}, {}, {57}, {61,62} };
+
+	for (unsigned i = 0; i < 26; i++)
+	{
+		if (codonRangeTest2[i] != ct->AAIndexToCodonRange(i, true))
+		{
+			std::cerr << "Error in AA index to codon range at " << i << std::endl;
+			error = 1;
+		}
+	}
+
+	if(!error)
+	{
+		std::cout << "AA index to codon range function --- Pass\n";
+	}
+	else
+	{
+		error = 0;
+	}
+
+	//-------------------------------//
+	//------ AA To Codon Range ------//
+	//-------------------------------//
+
+	for (unsigned i = 0; i < 26; i++)
+	{
+		if (codonRangeTest[i] != ct->AAToCodonRange(ct->indexToAA(i)), false)
+		{
+			std::cerr << "Error in AA to codon range at " << i << std::endl;
+			error = 1;
+		}
+	}
+
+	for (unsigned i = 0; i < 26; i++)
+	{
+		if (codonRangeTest2[i] != ct->AAToCodonRange(ct->indexToAA(i)), true)
+		{
+			std::cerr << "Error in AA to codon range at " << i << std::endl;
+			error = 1;
+		}
+	}
+	
+	if (!error)
+	{
+		std::cout << "AA to codon range function --- Pass\n";
+	}
+	else
+	{
+		error = 0;
+	}
+}
 
     //------------------------------//
     //------ writePA Function ------//

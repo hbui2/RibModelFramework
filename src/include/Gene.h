@@ -3,7 +3,7 @@
 
 
 #include "SequenceSummary.h"
-
+#include "CodonTable.h"
 
 #include <string>
 #include <vector>
@@ -26,7 +26,7 @@ class Gene
 
 		///Constructors & Destructors:
 		Gene();
-		Gene(std::string _seq, std::string _id, std::string _desc);
+		Gene(std::string _id, std::string _desc, std::string _seq);
 		Gene(const Gene& other);
 		Gene& operator=(const Gene& rhs);
 		bool operator==(const Gene& other) const;

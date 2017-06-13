@@ -6,6 +6,7 @@ using namespace Rcpp;
 #endif
 
 
+std::vector <std::string> Genome::defaultVector;
 
 
 
@@ -20,7 +21,19 @@ using namespace Rcpp;
 */
 Genome::Genome()
 {
-	//ctor
+	CodonTable::createCodonTable(1, "ROC", true);
+}
+
+
+Genome::Genome(unsigned codonTableId, std::string model, bool splitAA)
+{
+	CodonTable::createCodonTable(codonTableId, model, splitAA);
+}
+
+
+Genome::Genome(unsigned codonTableId, std::string model, bool splitAA, std::vector <std::string> groupList)
+{
+	CodonTable::createCodonTable(codonTableId, model, splitAA, groupList);
 }
 
 
@@ -80,7 +93,7 @@ void Genome::readFasta(std::string filename, bool append)
 			my_printError("ERROR: Error in Genome::readFasta: Can not open Fasta file %\n", filename);
 		else
 		{
-			//my_print("File opened\n");
+
 			bool fastaFormat = false;
 			std::string buf;
 			int newLine;
@@ -205,7 +218,8 @@ void Genome::writeFasta (std::string filename, bool simulated)
 */
 void Genome::readPAFile(std::string filename, bool append)
 {
-	try {
+	CodonTable *ct = CodonTable::getInstance();
+    try {
 		if (!append) clear();
 
 		std::ifstream Fin;
@@ -755,7 +769,7 @@ Genome Genome::getGenomeForGeneIndices(std::vector <unsigned> indices, bool simu
 std::vector<unsigned> Genome::getCodonCountsPerGene(std::string codon)
 {
 	std::vector<unsigned> codonCounts(genes.size());
-	unsigned codonIndex = SequenceSummary::codonToIndex(codon);
+	unsigned codonIndex = ct->codonToIndex(codon);
 	for (unsigned i = 0u; i < genes.size(); i++)
 	{
 		Gene gene = genes[i];
@@ -903,7 +917,8 @@ RCPP_MODULE(Genome_mod)
 {
 	class_<Genome>("Genome")
 		//Constructors & Destructors:
-		.constructor("empty constructor")
+		.constructor<unsigned, std::string, bool, std::vector <std::string> >()
+		.constructor<unsigned, std::string, bool>()
 
 
 		//File I/O Functions:
@@ -932,8 +947,9 @@ RCPP_MODULE(Genome_mod)
 		//R Section:
 		.method("getGeneByIndex", &Genome::getGeneByIndex, "returns a gene for a given index")
 		.method("getGeneById", &Genome::getGeneById) //TEST THAT ONLY!
-		.method("getGenomeForGeneIndices", &Genome::getGenomeForGeneIndicesR,
-			"returns a new genome based on the ones requested in the given vector")
+		.method("getGenomeForGeneIndicies", &Genome::getGenomeForGeneIndiciesR, "returns a new genome based on the ones requested in the given vector")
+        .method("getGroupList", &Genome::getGroupListFromGenomeR)
+        .method("AAToCodon", &Genome::AAToCodonFromGenomeR)
 		;
 }
 #endif

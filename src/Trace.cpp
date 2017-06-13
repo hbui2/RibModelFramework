@@ -311,7 +311,9 @@ std::vector<std::vector<std::vector<double>>> Trace::getSynthesisRateAcceptanceR
 
 std::vector<double> Trace::getCodonSpecificAcceptanceRateTraceForAA(std::string aa)
 {
+	CodonTable *ct = CodonTable::getInstance();
 	aa[0] = (char)std::toupper(aa[0]);
+	//unsigned aaIndex = ct->AAToAAIndex(aa);
 	unsigned aaIndex = SequenceSummary::aaToIndex.find(aa)->second;
 	return codonSpecificAcceptanceRateTrace[aaIndex];
 }
@@ -388,6 +390,8 @@ std::vector<std::vector<std::vector<std::vector<float>>>>* Trace::getCodonSpecif
 std::vector<float> Trace::getCodonSpecificParameterTraceByMixtureElementForCodon(unsigned mixtureElement,
 	std::string& codon, unsigned paramType, bool withoutReference)
 {
+	//CodonTable *ct = CodonTable::getInstance();
+	//unsigned codonIndex = ct -> codonToIndex(codon);
 	std::vector <float> rv;
 	unsigned codonIndex = SequenceSummary::codonToIndex(codon, withoutReference);
 	unsigned category = getCodonSpecificCategory(mixtureElement, paramType);
@@ -536,14 +540,16 @@ void Trace::updateMixtureProbabilitiesTrace(unsigned samples, std::vector<double
 void Trace::updateCodonSpecificParameterTraceForAA(unsigned sample, std::string aa,
 	std::vector<std::vector<double>> &curParam, unsigned paramType)
 {
-	unsigned aaStart;
-	unsigned aaEnd;
-	SequenceSummary::AAToCodonRange(aa, aaStart, aaEnd, true);
+	CodonTable *ct = CodonTable::getInstance();
+	std::vector <unsigned> codonRange = ct->AAToCodonRange(aa, true);
+	
+	//unsigned aaStart, aaEnd;
+	//SequenceSummary::AAToCodonRange(aa, aaStart, aaEnd, true);
 	for (unsigned category = 0; category < codonSpecificParameterTrace[paramType].size(); category++)
 	{
-		for (unsigned i = aaStart; i < aaEnd; i++)
+		for (unsigned i = 0; i < codonRange.size(); i++)
 		{
-			codonSpecificParameterTrace[paramType][category][i][sample] = curParam[category][i];
+			codonSpecificParameterTrace[paramType][category][codonRange[i]][sample] = curParam[category][codonRange[i]];
 		}
 	}
 	/*
@@ -600,7 +606,8 @@ void Trace::updateObservedSynthesisNoiseTrace(unsigned index, unsigned sample, d
 void Trace::updateCodonSpecificParameterTraceForCodon(unsigned sample, std::string codon,
 	std::vector<std::vector<double>> &curParam, unsigned paramType)
 {
-	unsigned i = SequenceSummary::codonToIndex(codon);
+	CodonTable *ct = CodonTable::getInstance();
+	unsigned i = ct -> codonToIndex(codon);
 	for (unsigned category = 0; category < codonSpecificParameterTrace[paramType].size(); category++)
 	{
 		codonSpecificParameterTrace[paramType][category][i][sample] = curParam[category][i];

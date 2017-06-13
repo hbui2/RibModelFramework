@@ -1,16 +1,15 @@
 #ifndef GENOME_H
 #define GENOME_H
 
-
-#include "Gene.h"
-
-
 #include <vector>
 #include <string>
 #include <map>
 #include <fstream>
 #include <sstream>
 #include <cmath>
+
+#include "Gene.h"
+#include "CodonTable.h"
 
 #ifndef STANDALONE
 #include <Rcpp.h>
@@ -27,10 +26,14 @@ class Genome
 												//with a phi value for that set. Values should currently be equal.
         std::vector<std::string> RFPCategoryNames;
 
+		static std::vector <std::string> defaultVector;
+
 	public:
 
-		//Constructors & Destructors:
+		//Constructors & destructors:
 		explicit Genome();
+		explicit Genome(unsigned codonTableId, std::string model, bool splitAA);
+		explicit Genome(unsigned codonTableId, std::string model, bool splitAA, std::vector <std::string> groupList);
 		Genome& operator=(const Genome& other);
 		bool operator==(const Genome& other) const;
 		virtual ~Genome();
@@ -47,7 +50,7 @@ class Genome
 		//Gene Functions:
 		void addGene(const Gene& gene, bool simulated = false);
 		std::vector <Gene> getGenes(bool simulated = false);
-		unsigned getNumGenesWithPhiForIndex(unsigned index);
+		unsigned getNumGenesWithPhi(unsigned index);
 		Gene& getGene(unsigned index, bool simulated = false);
 		Gene& getGene(std::string id, bool simulated = false);
 
@@ -72,7 +75,9 @@ class Genome
 		bool checkIndex(unsigned index, unsigned lowerbound, unsigned upperbound);
 		Gene& getGeneByIndex(unsigned index, bool simulated = false);
 		Gene& getGeneById(std::string ID, bool simulated = false);
-		Genome getGenomeForGeneIndicesR(std::vector <unsigned> indices, bool simulated = false);
+		Genome getGenomeForGeneIndiciesR(std::vector <unsigned> indices, bool simulated = false);
+        std::vector <std::string> getGroupListFromGenomeR();
+        std::vector <std::string> AAToCodonFromGenomeR(std::string, bool withoutReference);
 
 #endif //STANDALONE
 
